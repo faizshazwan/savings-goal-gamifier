@@ -1,16 +1,21 @@
 package gamifier;
 
-import javax.swing.*;
-
+/**
+ * Main entry point for the Savings Goal Gamifier application.
+ * Launches the Swing GUI.
+ */
 public class Main {
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Savings Goal Gamifier");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(400, 300);
-
-        JLabel label = new JLabel("Welcome to the Gamifier!", SwingConstants.CENTER);
-        frame.add(label);
-
-        frame.setVisible(true);
+        // Set system look and feel
+        try {
+            javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            // Use default look and feel if system one fails
+        }
+        
+        // Run GUI on Event Dispatch Thread
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            new SavingsGoalGamifierGUI().setVisible(true);
+        });
     }
 }
