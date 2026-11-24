@@ -5,8 +5,8 @@ package gamifier;
  */
 public class StandardGoal extends Goal {
 
-    public StandardGoal(String name, double targetAmount, double currentAmount) {
-        super(name, targetAmount, currentAmount);
+    public StandardGoal(String goalId, String userId, String name, double targetAmount, double currentAmount) {
+        super(goalId, userId, name, targetAmount, currentAmount);
     }
 
     @Override
@@ -25,17 +25,19 @@ public class StandardGoal extends Goal {
 
     @Override
     public String toCSV() {
-        return String.format("%s,%s,%.2f,%.2f", getGoalType(), name, targetAmount, currentAmount);
+        return String.format("%s,%s,%s,%s,%.2f,%.2f", getGoalType(), goalId, userId, name, targetAmount, currentAmount);
     }
 
     /**
      * Create a StandardGoal from CSV parts.
-     * Expected format: Standard,name,targetAmount,currentAmount
+     * Expected format: Standard,goalId,userId,name,targetAmount,currentAmount
      */
     public static StandardGoal fromCSV(String[] parts) {
-        String name = parts[1];
-        double targetAmount = Double.parseDouble(parts[2]);
-        double currentAmount = Double.parseDouble(parts[3]);
-        return new StandardGoal(name, targetAmount, currentAmount);
+        String goalId = parts[1];
+        String userId = parts[2];
+        String name = parts[3];
+        double targetAmount = Double.parseDouble(parts[4]);
+        double currentAmount = Double.parseDouble(parts[5]);
+        return new StandardGoal(goalId, userId, name, targetAmount, currentAmount);
     }
 }

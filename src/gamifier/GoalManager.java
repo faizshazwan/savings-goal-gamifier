@@ -7,11 +7,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * Manages the array of goals and handles file I/O operations.
- * Uses plain Java arrays with a separate counter (no Collections).
+ * Manages goals using plain arrays.
  */
 public class GoalManager {
-    private static final int MAX_GOALS = 50;
+    private static final int MAX_GOALS = 200;
     private Goal[] goals;
     private int goalCount;
     private static final String DATA_FILE = "goals.txt";
@@ -23,13 +22,13 @@ public class GoalManager {
     }
 
     /**
-     * Add a goal to the array.
+     * Add a goal.
      * @param goal the goal to add
-     * @throws IllegalStateException if the array is full
+     * @throws IllegalStateException if max goals reached
      */
     public void addGoal(Goal goal) {
         if (goalCount >= MAX_GOALS) {
-            throw new IllegalStateException("Maximum number of goals reached (" + MAX_GOALS + ")");
+            throw new IllegalStateException("Maximum number of goals reached");
         }
         goals[goalCount] = goal;
         goalCount++;
@@ -37,36 +36,43 @@ public class GoalManager {
     }
 
     /**
-     * Get a goal by index.
-     * @param index the index of the goal
-     * @return the goal at the specified index
-     * @throws GoalNotFoundException if index is out of bounds
+     * Get a goal by ID.
+     * @param goalId the goal ID
+     * @return the goal or null if not found
      */
-    public Goal getGoal(int index) throws GoalNotFoundException {
-        if (index < 0 || index >= goalCount) {
-            throw new GoalNotFoundException("Goal not found at index: " + index);
-        }
-        return goals[index];
-    }
-
-    /**
-     * Get a goal by name.
-     * @param name the name of the goal to find
-     * @return the goal with the matching name
-     * @throws GoalNotFoundException if no goal with that name exists
-     */
-    public Goal getGoalByName(String name) throws GoalNotFoundException {
+    public Goal getGoalById(String goalId) {
         for (int i = 0; i < goalCount; i++) {
-            if (goals[i].getName().equalsIgnoreCase(name)) {
+            if (goals[i].getGoalId().equals(goalId)) {
                 return goals[i];
             }
         }
-        throw new GoalNotFoundException("Goal not found: " + name);
+        return null;
     }
 
     /**
-     * Get all goals as an array (copy).
-     * @return array containing all goals
+     * Get all goals for a specific user.
+     * @param userId the user ID
+     * @return array of user's goals
+     */
+    public Goal[] getGoalsByUser(String userId) {
+        Goal[] userGoals = new Goal[goalCount];
+        int count = 0;
+        for (int i = 0; i < goalCount; i++) {
+            if (goals[i].getUserId().equals(userId)) {
+                userGoals[count] = goals[i];
+                count++;
+            }
+        }
+        Goal[] result = new Goal[count];
+        for (int i = 0; i < count; i++) {
+            result[i] = userGoals[i];
+        }
+        return result;
+    }
+
+    /**
+     * Get all goals.
+     * @return array of all goals
      */
     public Goal[] getAllGoals() {
         Goal[] result = new Goal[goalCount];
@@ -77,47 +83,61 @@ public class GoalManager {
     }
 
     /**
-     * Get the number of goals.
-     * @return the current goal count
-     */
-    public int getGoalCount() {
-        return goalCount;
-    }
-
-    /**
      * Log a contribution to a goal.
-     * @param index the index of the goal
+     * @param goalId the goal ID
      * @param amount the contribution amount
-     * @throws GoalNotFoundException if index is invalid
-     * @throws InvalidAmountException if amount is zero or negative
+     * @param userManager the user manager to update XP
+     * @return XP earned from contribution
+     * @throws GoalNotFoundException if goal not found
+     * @throws InvalidAmountException if amount <= 0
      */
-    public void logContribution(int index, double amount) throws GoalNotFoundException, InvalidAmountException {
+    public int logContribution(String goalId, double amount, UserManager userManager) throws GoalNotFoundException, InvalidAmountException {
         if (amount <= 0) {
             throw new InvalidAmountException("Contribution amount must be greater than zero");
         }
-        
-        Goal goal = getGoal(index);
-        goal.setCurrentAmount(goal.getCurrentAmount() + amount);
-        
-        // If it's a gamified goal, increment streak
-        if (goal instanceof GamifiedGoal) {
-            ((GamifiedGoal) goal).incrementStreak();
+
+        Goal goal = getGoalById(goalId);
+        if (goal == null) {
+            throw new GoalNotFoundException("Goal not found: " + goalId);
         }
-        
+
+        int xpEarned = 0;
+        if (goal instanceof GamifiedGoal) {
+            GamifiedGoal gamifiedGoal = (GamifiedGoal) goal;
+            xpEarned = gamifiedGoal.addContribution(amount);
+            
+            // Update user's total XP
+            User user = userManager.getUserById(goal.getUserId());
+            if (user != null) {
+                user.addXP(xpEarned);
+                userManager.updateUser(user);
+            }
+        } else {
+            goal.setCurrentAmount(goal.getCurrentAmount() + amount);
+        }
+
         saveGoals();
+        return xpEarned;
     }
 
     /**
-     * Remove a goal by index (shifts remaining goals).
-     * @param index the index of the goal to remove
-     * @throws GoalNotFoundException if index is invalid
+     * Delete a goal.
+     * @param goalId the goal ID to delete
+     * @throws GoalNotFoundException if goal not found
      */
-    public void removeGoal(int index) throws GoalNotFoundException {
-        if (index < 0 || index >= goalCount) {
-            throw new GoalNotFoundException("Goal not found at index: " + index);
+    public void deleteGoal(String goalId) throws GoalNotFoundException {
+        int index = -1;
+        for (int i = 0; i < goalCount; i++) {
+            if (goals[i].getGoalId().equals(goalId)) {
+                index = i;
+                break;
+            }
         }
-        
-        // Shift all subsequent goals left
+        if (index == -1) {
+            throw new GoalNotFoundException("Goal not found: " + goalId);
+        }
+
+        // Shift array
         for (int i = index; i < goalCount - 1; i++) {
             goals[i] = goals[i + 1];
         }
@@ -127,7 +147,26 @@ public class GoalManager {
     }
 
     /**
-     * Save all goals to a CSV text file.
+     * Generate a unique goal ID.
+     */
+    public String generateGoalId() {
+        int maxId = 0;
+        for (int i = 0; i < goalCount; i++) {
+            String id = goals[i].getGoalId();
+            if (id.startsWith("G")) {
+                try {
+                    int num = Integer.parseInt(id.substring(1));
+                    if (num > maxId) maxId = num;
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+        }
+        return String.format("G%03d", maxId + 1);
+    }
+
+    /**
+     * Save all goals to CSV file.
      */
     public void saveGoals() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(DATA_FILE))) {
@@ -141,7 +180,7 @@ public class GoalManager {
     }
 
     /**
-     * Load goals from the CSV text file.
+     * Load goals from CSV file.
      */
     public void loadGoals() {
         try (BufferedReader reader = new BufferedReader(new FileReader(DATA_FILE))) {
@@ -149,39 +188,26 @@ public class GoalManager {
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
-                
+
                 String[] parts = line.split(",");
-                if (parts.length < 4) continue;
-                
+                if (parts.length < 6) continue;
+
                 String type = parts[0];
                 Goal goal = null;
-                
+
                 if ("Standard".equals(type)) {
                     goal = StandardGoal.fromCSV(parts);
                 } else if ("Gamified".equals(type)) {
                     goal = GamifiedGoal.fromCSV(parts);
                 }
-                
+
                 if (goal != null && goalCount < MAX_GOALS) {
                     goals[goalCount] = goal;
                     goalCount++;
                 }
             }
         } catch (IOException e) {
-            // File doesn't exist or can't be read - start fresh
             System.out.println("No existing goals file found. Starting fresh.");
         }
-    }
-
-    /**
-     * Get goal names for dropdown/combobox.
-     * @return array of goal names
-     */
-    public String[] getGoalNames() {
-        String[] names = new String[goalCount];
-        for (int i = 0; i < goalCount; i++) {
-            names[i] = goals[i].getName();
-        }
-        return names;
     }
 }

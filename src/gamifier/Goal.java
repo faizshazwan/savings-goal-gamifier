@@ -2,17 +2,36 @@ package gamifier;
 
 /**
  * Abstract parent class for all savings goals.
- * Contains common fields and an abstract method for calculating progress.
  */
 public abstract class Goal {
+    protected String goalId;
+    protected String userId;
     protected String name;
     protected double targetAmount;
     protected double currentAmount;
 
-    public Goal(String name, double targetAmount, double currentAmount) {
+    public Goal(String goalId, String userId, String name, double targetAmount, double currentAmount) {
+        this.goalId = goalId;
+        this.userId = userId;
         this.name = name;
         this.targetAmount = targetAmount;
         this.currentAmount = currentAmount;
+    }
+
+    public String getGoalId() {
+        return goalId;
+    }
+
+    public void setGoalId(String goalId) {
+        this.goalId = goalId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getName() {
@@ -55,10 +74,9 @@ public abstract class Goal {
 
     /**
      * Convert goal to CSV string for file storage.
-     * @return CSV formatted string
      */
     public String toCSV() {
-        return String.format("%s,%s,%.2f,%.2f", getGoalType(), name, targetAmount, currentAmount);
+        return String.format("%s,%s,%s,%.2f,%.2f", getGoalType(), goalId, userId, targetAmount, currentAmount);
     }
 
     @Override
